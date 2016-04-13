@@ -9,23 +9,25 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 ?>
 
 
+<p><?=GetMessage('PERIOD')?> <?=$arResult['PERIOD']?> </p>
+<p><?=GetMessage('MIN_SALES')?> <?=$arResult['MIN_SALES']?></p>
+<table>
+	<tr><th><?=GetMessage('PRODUCT_ID')?></th><th><?=GetMessage('PRODUCT_NAME')?></th><th><?=GetMessage('ARTICLE')?></th><th><?=GetMessage('PRICE')?></th><th><?=GetMessage('TOTAL_QUANTITY')?></th></tr>
+
 <?
-echo '<p>'.GetMessage('PERIOD').' '.$arResult['PERIOD'].'</p>';
-echo '<p>'.GetMessage('MIN_SALES').' '.$arResult['MIN_SALES'].'</p>';
-
-foreach ($arResult["REPORT"] as &$SaleItem) {
-	echo '<div class="sales">';
-	echo GetMessage('PRODUCT_ID').' '.$SaleItem["PRODUCT_ID"].'<br />';
-	echo GetMessage('PRODUCT_NAME').' <a href="'.$SaleItem["DETAIL_PAGE_URL"].'" target="_blank">'.$SaleItem["NAME"].'</a><br />';
-	echo GetMessage('ARTICLE').' '.$SaleItem["ARTICLE"].'<br />';       
-	echo '<table><tr><th>'.GetMessage('DATE_UPDATE').'</th><th>'.GetMessage('QUANTITY').'</th><th>'.GetMessage('PRICE').'</th></tr>';    
-
-	foreach ($SaleItem["SALES"] as &$Sales) {
-		echo '<tr><td>'.$Sales["DATE_UPDATE"].'</td><td>'.$Sales["QUANTITY"].'</td><td>'.$Sales["PRICE"].'</td></tr>';   
+	foreach ($arResult["REPORT"] as &$SaleItem) {
+		if ($SaleItem["SALES"]<=$arResult['MIN_SALES']) { 
+?>
+		<tr>
+			<td><?=$SaleItem["PRODUCT_ID"]?></td>
+			<td><a href="<?=$SaleItem["DETAIL_PAGE_URL"]?>" target="_blank"><?=$SaleItem["NAME"]?></a></td>
+			<td><?=$SaleItem["ARTICLE"]?></td>       
+			<td><?=$SaleItem["PRICE"]?></td>       
+			<td><?=$SaleItem["SALES"]?></td>       
+		</tr>
+<?
+		}
 	}
-	echo '</table>';    
-	echo GetMessage('TOTAL_QUANTITY').' '.$SaleItem["TOTAL_QUANTITY"].'<br />';   
-	echo '</div>';
-}
 
 ?>
+</table>

@@ -22,9 +22,24 @@ if (CSite::InGroup($arParams["USER_GROUP"]) and CModule::IncludeModule("sale") a
 	$arResult["PERIOD"]=$arParams["PERIOD"];
 	$dDate = ConvertTimeStamp((time()-$arParams["PERIOD"]*(24*60*60)),"FULL");
 
+        // список товаров из каталога
+	$arProdCat = array ();
+	$arSelectFields = Array("CATALOG_GROUP_1","PROPERTY_CML2_ARTICLE","DETAIL_PAGE_URL","NAME","IBLOCK_SECTION_ID");
+	$elProducts = CIBlockElement::GetList (Array("ID" => "ASC"), Array("IBLOCK_ID" => 6, "ACTIVE" => "Y"), false, false, $arSelectFields);
+	while ($arProduct = $elProducts->Fetch()) {
+
+                $arResult["REPORT"][$arProduct["ID"]]["PRODUCT_ID"]=$arProduct["ID"];
+                $arResult["REPORT"][$arProduct["ID"]]["NAME"]=$arProduct["NAME"];
+                $arResult["REPORT"][$arProduct["ID"]]["DETAIL_PAGE_URL"]=str_replace("#ELEMENT_ID#",$arProduct["ID"],str_replace("#SECTION_ID#",$arProduct["IBLOCK_SECTION_ID"],$arProduct["DETAIL_PAGE_URL"]));
+                $arResult["REPORT"][$arProduct["ID"]]["ARTICLE"]=$arProduct["PROPERTY_CML2_ARTICLE_VALUE"];
+                $arResult["REPORT"][$arProduct["ID"]]["PRICE"]=$arProduct["CATALOG_PRICE_1"];
+                $arResult["REPORT"][$arProduct["ID"]]["SALES"]=0;
+	}
+
+	// заказы
+
 	$arOrdersList=array();
 	$arFilter = Array(">=DATE_INSERT" => $dDate);
-	// заказы проверяются только по дате; можно добавить проверку статуса
 	$arSales = CSaleOrder::GetList(array(), $arFilter);
 	while ($arSalesItem = $arSales->Fetch()) {
 		$arOrdersList[]=$arSalesItem["ID"];
@@ -35,33 +50,11 @@ if (CSite::InGroup($arParams["USER_GROUP"]) and CModule::IncludeModule("sale") a
 	$arGroupBy = array("PRODUCT_ID", "SUM" => "QUANTITY");
 	$arSelectFields = array("PRODUCT_ID"); 
 	// группировку и фильтрацию по сумме в одном вызове CSaleBasket::GetList получить не удалось,
-	// поэтому фильтрация выполняется отдельно в другой массив
+	// в $arResult записываются все продажи; фильтр по количеству - при выводе в шаблоне (для упрощения)
+	// также можно сделать вариант с сортировкой результата (задать порядок сортировки в параметрах компонента), и с удалением лишних элементов
 	$dbBasketItems = CSaleBasket::GetList(array(), $arFilter, $arGroupBy, false, $arSelectFields);
 	while ($arItems = $dbBasketItems->Fetch()) {
-		if ($arItems["QUANTITY"] <= $arParams["MIN_SALES"] ) {
-			$arSelectedSales["PRODUCT_ID"][$arItems["PRODUCT_ID"]]=$arItems["PRODUCT_ID"];
-			$arSelectedSales["TOTAL_QUANTITY"][$arItems["PRODUCT_ID"]]=$arItems["QUANTITY"];
- 		}
-	}
-
-	// наименование, артикул и детальная страница берутся из каталога
-	// для получения поля артикула варианты типа CCatalogProduct::GetList(array(), array("ID" => $arSelectedSales["PRODUCT_ID"]), false, false, array("PROPERTY_CML2_ARTICLE") );не сработали
-	// поэтому используется CCatalogProduct::GetByIDEx
-	$arSelectFields = array("PRODUCT_ID","PRICE","QUANTITY","DATE_UPDATE"); 
-	foreach ($arSelectedSales["PRODUCT_ID"] as &$SaleItem) {
-		$arProd = CCatalogProduct::GetByIDEx($SaleItem);
-                $arResult["REPORT"][$SaleItem]["PRODUCT_ID"]=$SaleItem;
-                $arResult["REPORT"][$SaleItem]["NAME"]=$arProd["NAME"];
-                $arResult["REPORT"][$SaleItem]["DETAIL_PAGE_URL"]=$arProd["DETAIL_PAGE_URL"];
-                $arResult["REPORT"][$SaleItem]["ARTICLE"]=$arProd["PROPERTIES"]["CML2_ARTICLE"]["VALUE"];
-
-		// цена загружается из корзины - именно та, которая была во время заказа, поэтому добавила расшифровку по времени заказа
-		// здесь можно сделать также вариант одним запросом, указав в фильтре весь список PRODUCT_ID, но поскольку остальные параметры определяются в цикле, оставила этот вариант
-		$dbBasketItems = CSaleBasket::GetList(array("ORDER_ID" => "ASC"), array("PRODUCT_ID" => $SaleItem), false, false, $arSelectFields);
-		while ($arItems = $dbBasketItems->Fetch()) {
-                	$arResult["REPORT"][$SaleItem]["SALES"][]=array("DATE_UPDATE" => $arItems["DATE_UPDATE"], "QUANTITY" => $arItems["QUANTITY"], "PRICE" => round((float)$arItems["PRICE"],2));
-		}
-                $arResult["REPORT"][$SaleItem]["TOTAL_QUANTITY"]=$arSelectedSales["TOTAL_QUANTITY"][$SaleItem];
+                $arResult["REPORT"][$arItems["PRODUCT_ID"]]["SALES"]=$arItems["QUANTITY"];
 
 	}
 	 
